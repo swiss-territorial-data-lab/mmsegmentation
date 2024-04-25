@@ -5,6 +5,7 @@ import warnings
 import torch
 import torch.nn as nn
 import torch.utils.checkpoint as cp
+from collections import OrderedDict
 from mmcv.cnn import build_norm_layer
 from mmcv.cnn.bricks.transformer import FFN, MultiheadAttention
 from mmengine.logging import print_log
@@ -331,14 +332,82 @@ class VisionTransformer(BaseModule):
                 else:
                     state_dict = checkpoint
 
-            elif self.init_cfg.get('type') == 'Pretrained_Part':
-                state_dict = checkpoint.copy()
-                para_prefix = 'image_encoder'
-                prefix_len = len(para_prefix) + 1
-                for k, v in checkpoint.items():
-                    state_dict.pop(k)
-                    if para_prefix in k:
-                        state_dict[k[prefix_len:]] = v
+            elif self.init_cfg.get('type') == 'Pretrained_Part':     
+                print_log(msg=f"Loading with different in_channels pretrained weights!")
+                if self.init_cfg.get('copy_rgb'):
+                    copy_rgb = True
+                    print_log(msg=f"Copy red channel weights to additional channels!")
+                else:
+                    copy_rgb = False
+                    print_log(msg=f"Do random initialization for additional channels!")
+
+                if 'state_dict' in checkpoint:
+                    state_dict = checkpoint['state_dict']
+                else:
+                    state_dict = checkpoint  
+                
+                expanded_state_dict = OrderedDict()         
+
+                for name, weight in state_dict.items():
+                    # weight for partial pretrained checkpoint
+                    # param for current model
+                    if name.startswith('backbone.'):
+                        name = name[len('backbone.'):]
+                    if name == 'pos_embed':
+                        expanded_state_dict[name] = weight 
+                        print_log(msg=f"Skip pos_embed layer!")
+                        continue
+                    parts = [string if not string.isdigit() else '['+ string +']' for string in name.split('.')]
+                    key = '.'.join(parts).replace('.[', '[')
+                    
+                    try:
+                        param = eval('self.' + key)
+                        if param is None:
+                            continue
+                    except Exception as e:
+                        print_log(msg=f"Unexpected init weights {name}")
+                        continue
+
+                    # if param.size() != weight.size():
+                    #     random_init = torch.randn_like(param)
+                    #     if len(weight.size()) == 1:
+                    #         random_init[:weight.size()[0]].copy_(weight)
+                    #         if copy_rgb:
+                    #             random_init[weight.size()[0]:].copy_(weight[0])
+                    #     elif len(weight.size()) == 2:
+                    #         random_init[:weight.size()[0], :weight.size()[1]].copy_(weight)
+                    #         if copy_rgb:
+                    #             random_init[:, weight.size()[1]:].copy_(weight[0, :])
+                    #     elif len(param.size()) == 3:
+                    #         random_init[:weight.size()[0], :weight.size()[1], :weight.size()[2]].copy_(weight)
+                    #         if copy_rgb:
+                    #             random_init[:, weight.size()[1]:, :].copy_(weight[:, 0:, :])
+                    #     elif len(param.size()) == 4:
+                    #         random_init[:weight.size()[0], :weight.size()[1], :weight.size()[2], :weight.size()[3]].copy_(weight)
+                    #         if copy_rgb:
+                    #             random_init[:, 3: , :, :].copy_(weight[:, [0, 0], :, :])
+                    #     else:
+                    #         raise ValueError('Model weights more than 4 dimension!')
+                        
+                    #     expanded_state_dict[name] = random_init         
+                    if param.size() != weight.size():
+                        random_init = torch.randn_like(param)
+                        if len(weight.size()) == 1:
+                            random_init.copy_(weight[:param.size()[0]])
+                        elif len(weight.size()) == 2:
+                            random_init.copy_(weight[:param.size()[0], :param.size()[1]])
+                        elif len(param.size()) == 3:
+                            random_init.copy_(weight[:param.size()[0], :param.size()[1], :param.size()[2]])
+                        elif len(param.size()) == 4:
+                            random_init.copy_(weight[:param.size()[0], :param.size()[1], :param.size()[2], :param.size()[3]])
+                        else:
+                            raise ValueError('Model weights more than 4 dimension!')
+                        
+                        expanded_state_dict[name] = random_init     
+                    else:
+                        expanded_state_dict[name] = weight 
+                    
+                state_dict = expanded_state_dict
 
             if 'pos_embed' in state_dict.keys():
                 if self.pos_embed.shape != state_dict['pos_embed'].shape:

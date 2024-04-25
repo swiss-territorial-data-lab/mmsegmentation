@@ -99,6 +99,7 @@ class MAE(BEiT):
                  norm_eval=False,
                  pretrained=None,
                  init_values=0.1,
+                 frozen_stages=-1,
                  init_cfg=None):
         super().__init__(
             img_size=img_size,
@@ -121,6 +122,8 @@ class MAE(BEiT):
             pretrained=pretrained,
             init_values=init_values,
             init_cfg=init_cfg)
+
+        self.frozen_stages = frozen_stages
 
         self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dims))
 
@@ -233,6 +236,31 @@ class MAE(BEiT):
                 new_pos_embed = torch.cat((extra_tokens, pos_tokens), dim=1)
                 state_dict['pos_embed'] = new_pos_embed
         return state_dict
+
+
+    def train(self, mode=True):
+        super().train(mode)
+        if mode and self.norm_eval:
+            for m in self.modules():
+                if isinstance(m, nn.LayerNorm):
+                    m.eval()
+        
+        self._freeze_stages()
+
+
+    def _freeze_stages(self):
+        if self.frozen_stages >= 0:
+            self.patch_embed.eval()
+            for param in self.patch_embed.parameters():
+                param.requires_grad = False
+            self.pos_embed.requires_grad = False
+
+        for layer_id in range(self.frozen_stages):
+
+            self.layers[layer_id].eval()
+            for param in self.layers[layer_id].parameters():
+                param.requires_grad = False
+
 
     def forward(self, inputs):
         B = inputs.shape[0]

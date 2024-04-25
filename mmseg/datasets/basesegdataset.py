@@ -120,7 +120,11 @@ class BaseSegDataset(BaseDataset):
 
         # Get label map for custom classes
         new_classes = self._metainfo.get('classes', None)
-        self.label_map = self.get_label_map(new_classes)
+
+        if self._metainfo.get('label_map', None) != None:
+            self.label_map = self._metainfo.get('label_map', None)
+        else: 
+            self.label_map = self.get_label_map(new_classes)
         self._metainfo.update(
             dict(
                 label_map=self.label_map,

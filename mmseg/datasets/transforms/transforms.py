@@ -747,6 +747,125 @@ class PhotoMetricDistortion(BaseTransform):
                      f'{self.saturation_upper}), '
                      f'hue_delta={self.hue_delta})')
         return repr_str
+    
+
+@TRANSFORMS.register_module()
+class PhotoMetricDistortion5Channel(PhotoMetricDistortion):
+    """Apply photometric distortion to image with 5 channel sequentially, every transformation
+    is applied with a probability of 0.5. The position of random contrast is in
+    second or second to last.
+
+    1. random brightness
+    2. random contrast (mode 0)
+    3. random Gaussin noise
+    7. random contrast (mode 1)
+
+    Required Keys:
+
+    - img
+
+    Modified Keys:
+
+    - img
+
+    Args:
+        brightness_delta (int): delta of brightness.
+        contrast_range (tuple): range of contrast.
+        saturation_range (tuple): range of saturation.
+        hue_delta (int): delta of hue.
+    """
+    def __init__(self,
+                 brightness_delta: int = 32,
+                 contrast_range: Sequence[float] = (0.5, 1.5)):
+        self.brightness_delta = brightness_delta
+        self.contrast_lower, self.contrast_upper = contrast_range
+
+    def convert(self,
+                img: np.ndarray,
+                alpha: int = 1,
+                beta: int = 0) -> np.ndarray:
+        """Multiple with alpha and add beat with clip.
+
+        Args:
+            img (np.ndarray): The input image.
+            alpha (int): Image weights, change the contrast/saturation
+                of the image. Default: 1
+            beta (int): Image bias, change the brightness of the
+                image. Default: 0
+
+        Returns:
+            np.ndarray: The transformed image.
+        """
+
+        img = img.astype(np.float32) * alpha + beta
+        img = np.clip(img, 0, 255)
+        return img.astype(np.uint8)
+
+    def brightness(self, img: np.ndarray) -> np.ndarray:
+        """Brightness distortion.
+
+        Args:
+            img (np.ndarray): The input image.
+        Returns:
+            np.ndarray: Image after brightness change.
+        """
+
+        if random.randint(2):
+            return self.convert(
+                img,
+                beta=random.uniform(-self.brightness_delta,
+                                    self.brightness_delta))
+        return img
+
+    def contrast(self, img: np.ndarray) -> np.ndarray:
+        """Contrast distortion.
+
+        Args:
+            img (np.ndarray): The input image.
+        Returns:
+            np.ndarray: Image after contrast change.
+        """
+
+        if random.randint(2):
+            return self.convert(
+                img,
+                alpha=random.uniform(self.contrast_lower, self.contrast_upper))
+        return img
+
+
+    def transform(self, results: dict) -> dict:
+        """Transform function to perform photometric distortion on images.
+
+        Args:
+            results (dict): Result dict from loading pipeline.
+
+        Returns:
+            dict: Result dict with images distorted.
+        """
+
+        img_rgbi = results['img'][:, :, :4]
+        # random brightness
+        img_rgbi = self.brightness(img_rgbi)
+
+        # mode == 0 --> do random contrast first
+        # mode == 1 --> do random contrast last
+        mode = random.randint(2)
+        if mode == 1:
+            img_rgbi = self.contrast(img_rgbi)
+
+        # random contrast
+        if mode == 0:
+            img_rgbi = self.contrast(img_rgbi)
+
+        results['img'][:, :, :4] = img_rgbi
+        return results
+
+    def __repr__(self):
+        repr_str = self.__class__.__name__
+        repr_str += (f'(brightness_delta={self.brightness_delta}, '
+                     f'contrast_range=({self.contrast_lower}, '
+                     f'{self.contrast_upper})')
+        return repr_str
 
 
 @TRANSFORMS.register_module()
@@ -2329,19 +2448,14 @@ class Albu(BaseTransform):
     Args:
         transforms (list[dict]): A list of albu transformations
         keymap (dict): Contains {'input key':'albumentation-style key'}
-        additional_targets(dict):  Allows applying same augmentations to \
-        multiple objects of same type.
         update_pad_shape (bool): Whether to update padding shape according to \
             the output shape of the last transform
-        bgr_to_rgb (bool): Whether to convert the band order to RGB
     """
 
     def __init__(self,
                  transforms: List[dict],
                  keymap: Optional[dict] = None,
-                 additional_targets: Optional[dict] = None,
-                 update_pad_shape: bool = False,
-                 bgr_to_rgb: bool = True):
+                 update_pad_shape: bool = False):
         if not ALBU_INSTALLED:
             raise ImportError(
                 'albumentations is not installed, '
@@ -2354,12 +2468,9 @@ class Albu(BaseTransform):
 
         self.transforms = transforms
         self.keymap = keymap
-        self.additional_targets = additional_targets
         self.update_pad_shape = update_pad_shape
-        self.bgr_to_rgb = bgr_to_rgb
 
-        self.aug = Compose([self.albu_builder(t) for t in self.transforms],
-                           additional_targets=self.additional_targets)
+        self.aug = Compose([self.albu_builder(t) for t in self.transforms], is_check_shapes=False)
 
         if not keymap:
             self.keymap_to_albu = {'img': 'image', 'gt_seg_map': 'mask'}
@@ -2424,28 +2535,15 @@ class Albu(BaseTransform):
         # dict to albumentations format
         results = self.mapper(results, self.keymap_to_albu)
 
-        # Convert to RGB since Albumentations works with RGB images
-        if self.bgr_to_rgb:
-            results['image'] = cv2.cvtColor(results['image'],
-                                            cv2.COLOR_BGR2RGB)
-            if self.additional_targets:
-                for key, value in self.additional_targets.items():
-                    if value == 'image':
-                        results[key] = cv2.cvtColor(results[key],
-                                                    cv2.COLOR_BGR2RGB)
+        # Operate on GNB-NIR channel
+        img_5_channel = results['image'].copy()
+        results['image'] = results['image'][:, :, :4]
 
-        # Apply Transform
         results = self.aug(**results)
 
-        # Convert back to BGR
-        if self.bgr_to_rgb:
-            results['image'] = cv2.cvtColor(results['image'],
-                                            cv2.COLOR_RGB2BGR)
-            if self.additional_targets:
-                for key, value in self.additional_targets.items():
-                    if value == 'image':
-                        results[key] = cv2.cvtColor(results['image2'],
-                                                    cv2.COLOR_RGB2BGR)
+        # Recover 5 channel
+        img_5_channel[:, :, :4] = results['image']
+        results['image'] = img_5_channel
 
         # back to the original format
         results = self.mapper(results, self.keymap_back)

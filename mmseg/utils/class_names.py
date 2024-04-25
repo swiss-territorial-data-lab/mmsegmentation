@@ -1,7 +1,33 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 from mmengine.utils import is_str
 
+def stdl_soils_classes():
+    """stdl_soils class names for external use."""
+    # reduced 13 classes
+    return ['batiment', 'surface_non_beton', 'surface_beton', 'roche_dure_meuble', 'eau_naturelle', 'roseliere',
+               'sol_neige', 'sol_vegetalise', 'sol_divers', 'sol_vigne', 'sol_agricole', 'sol_bache']
 
+
+def stdl_soils_palette():
+    """stdl_soils palette for external use."""
+    return [[219,14,154],[147,142,123],[248,12,0],[169,113,1],[21,83,174],[25,74,38],[70,228,131],
+                 [243,166,13],[102,0,130],[85,255,0],[255,243,13],[228,223,124]]
+
+
+def flairone_classes():
+    """FLAIR#1 class names for external use."""
+    # reduced 13 classes
+    return ['Building', 'Pervious surface', 'Impervious surface', 'Bare soil', 'Water', 'Coniferous',
+            'Deciduous', 'Brushwood', 'Vineyard', 'Herbaceous vegetation', 'Agricultural land', 
+            'Plowed land', 'Other']
+
+
+def flairone_palette():
+    """FLAIR#1 palette for external use."""
+    return [[219,14,154],[147,142,123],[248,12,0],[169,113,1],[21,83,174],[25,74,38],[70,228,131],
+                 [243,166,13],[102,0,130],[85,255,0],[255,243,13],[228,223,124],[0,0,0]]
+    
+    
 def cityscapes_classes():
     """Cityscapes class names for external use."""
     return [
@@ -473,22 +499,9 @@ def bdd100k_palette():
             [0, 0, 230], [119, 11, 32]]
 
 
-def hsidrive_classes():
-    """HSI Drive 2.0 class names for external use."""
-    return [
-        'unlabelled', 'road', 'road marks', 'vegetation', 'painted metal',
-        'sky', 'concrete', 'pedestrian', 'water', 'unpainted metal', 'glass'
-    ]
-
-
-def hsidrive_palette():
-    """HSI Drive 2.0 palette for external use."""
-    return [[0, 0, 0], [77, 77, 77], [255, 255, 255], [0, 255, 0], [255, 0, 0],
-            [0, 0, 255], [102, 51, 0], [255, 255, 0], [0, 207, 250],
-            [255, 166, 0], [0, 204, 204]]
-
-
 dataset_aliases = {
+    'stdl_soils': ['stdl_soils', 'stdlsoils', 'StdlSoils'],
+    'flairone': ['flairone', 'flair_one'],
     'cityscapes': ['cityscapes'],
     'ade': ['ade', 'ade20k'],
     'voc': ['voc', 'pascal_voc', 'voc12', 'voc12aug'],
@@ -506,11 +519,7 @@ dataset_aliases = {
     'lip': ['LIP', 'lip'],
     'mapillary_v1': ['mapillary_v1'],
     'mapillary_v2': ['mapillary_v2'],
-    'bdd100k': ['bdd100k'],
-    'hsidrive': [
-        'hsidrive', 'HSIDrive', 'HSI-Drive', 'hsidrive20', 'HSIDrive20',
-        'HSI-Drive20'
-    ]
+    'bdd100k': ['bdd100k']
 }
 
 

@@ -161,6 +161,8 @@ def show_result_pyplot(model: BaseSegmentor,
     if hasattr(model, 'module'):
         model = model.module
     if isinstance(img, str):
+        if img.endswith('.tif') or img.endswith('.tiff'):
+            mmcv.image.use_backend('tifffile')
         image = mmcv.imread(img, channel_order='rgb')
     else:
         image = img
