@@ -5,10 +5,10 @@ _base_ = [
 ]
 crop_size = (512, 512)
 
-load_from = '/mnt/Data2/sli/mmsegmentation/work_dirs/no_photometric/scratch_init_2e-4/iter_114000.pth'
+load_from = '/mnt/Data2/sli/mmsegmentation/work_dirs/natural_init/160k_flair-512x512-in-ft-2e-5/iter_160000.pth'
 
 train_pipeline = [
-    dict(type='LoadSingleRSImageFromFile'),
+    dict(type='LoadSingleRSImageFromFile', in_channels = 5),
     dict(type='LoadAnnotations'),
     dict(
         type='RandomResize',
@@ -53,7 +53,9 @@ model = dict(
         frozen_exclude=['all'],
         # final_norm=True,
         out_indices=[7, 11, 15, 23],
-        # init_cfg = dict(type='Pretrained', checkpoint='/mnt/Data2/sli/mmsegmentation/pretrained_ViT/vit_sampled_latest.pth')
+        init_cfg = dict(type='Pretrained_Part', 
+                        checkpoint='/mnt/Data2/sli/mmsegmentation/pretrained_ViT/vit-large-p16_in21k-pre-3rdparty_ft-in1k-384-mmseg.pth',
+                        copy_rgb=True)
         ),
     neck=dict(
         type='MultiLevelNeck',
@@ -83,7 +85,7 @@ optim_wrapper = dict(
     _delete_=True,
     type='OptimWrapper',
     optimizer=dict(
-        type='AdamW', lr=2e-6, betas=(0.9, 0.999), weight_decay=0.05),
+        type='AdamW', lr=2e-5, betas=(0.9, 0.999), weight_decay=0.05),
     paramwise_cfg=dict(
         custom_keys={
             'pos_embed': dict(decay_mult=0.),
@@ -93,11 +95,11 @@ optim_wrapper = dict(
         )
 
 param_scheduler = [
-    # dict(
-    #     type='LinearLR', start_factor=1e-6, by_epoch=False, begin=0, end=1500),
+    dict(
+        type='LinearLR', start_factor=1e-6, by_epoch=False, begin=0, end=1500),
     dict(
         type='PolyLR',
-        eta_min=2e-8,
+        eta_min=1e-6,
         power=1.0,
         begin=0,
         end=160000,
@@ -105,7 +107,7 @@ param_scheduler = [
     )
 ]
 
-# By default, models are trained on 8 GPUs with 2 images per GPU
+
 train_dataloader = dict(  
     batch_size=4,  
     num_workers=4,  

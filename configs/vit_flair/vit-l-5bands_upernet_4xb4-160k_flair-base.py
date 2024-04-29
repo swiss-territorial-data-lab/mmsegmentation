@@ -4,26 +4,7 @@ _base_ = [
     '../_base_/schedules/schedule_160k.py'
 ]
 crop_size = (512, 512)
-
-load_from = '/mnt/Data2/sli/mmsegmentation/work_dirs/natural_init/160k_flair-512x512-in-ft-2e-5/iter_160000.pth'
-
-train_pipeline = [
-    dict(type='LoadSingleRSImageFromFile'),
-    dict(type='LoadAnnotations'),
-    dict(
-        type='RandomResize',
-        scale=(512, 512),
-        ratio_range=(0.5, 2.0),
-        keep_ratio=True
-        ),
-    dict(type='RandomCrop', crop_size=crop_size, cat_max_ratio=0.75),
-    dict(type='RandomFlip', prob=0.5),
-    # dict(type='PhotoMetricDistortion5Channel'),
-    # dict(
-    #     type='Albu',
-    #     transforms=[dict(type='GaussNoise', p=0.5)]),
-    dict(type='PackSegInputs')
-]
+img_channels = 5
 
 data_preprocessor = dict(  
     type='SegDataPreProcessor',  
@@ -43,7 +24,7 @@ model = dict(
         img_size=crop_size,
         patch_size=16,
         embed_dims=1024,
-        in_channels=5,
+        in_channels=img_channels,
         num_layers=24,
         num_heads=16,
         mlp_ratio=4,
@@ -52,10 +33,7 @@ model = dict(
         drop_path_rate=0.,    
         frozen_exclude=['all'],
         # final_norm=True,
-        out_indices=[7, 11, 15, 23],
-        init_cfg = dict(type='Pretrained_Part', 
-                        checkpoint='/mnt/Data2/sli/mmsegmentation/pretrained_ViT/vit-large-p16_in21k-pre-3rdparty_ft-in1k-384-mmseg.pth',
-                        copy_rgb=True)
+        out_indices=[7, 11, 15, 23]
         ),
     neck=dict(
         type='MultiLevelNeck',
@@ -99,7 +77,7 @@ param_scheduler = [
         type='LinearLR', start_factor=1e-6, by_epoch=False, begin=0, end=1500),
     dict(
         type='PolyLR',
-        eta_min=1e-6,
+        eta_min=2e-8,
         power=1.0,
         begin=0,
         end=160000,
@@ -107,7 +85,7 @@ param_scheduler = [
     )
 ]
 
-
+# By default, models are trained on 4 GPUs with 16 images per GPU
 train_dataloader = dict(  
     batch_size=4,  
     num_workers=4,  

@@ -1,10 +1,11 @@
 # dataset settings
 dataset_type = 'FlairOneDataset'
-data_root = '/mnt/Data2/sli/mmsegmentation/data/flair/'
+data_root = '/mmsegmentation/data/flair/'
 crop_size = (512, 512)
+img_channels = 5
 
 train_pipeline = [
-    dict(type='LoadSingleRSImageFromFile'),
+    dict(type='LoadSingleRSImageFromFile', in_channels=img_channels),
     dict(type='LoadAnnotations'),
     dict(
         type='RandomResize',
@@ -14,16 +15,12 @@ train_pipeline = [
         ),
     dict(type='RandomCrop', crop_size=crop_size, cat_max_ratio=0.75),
     dict(type='RandomFlip', prob=0.5),
-    dict(type='PhotoMetricDistortion5Channel'),
-    dict(
-        type='Albu',
-        transforms=[dict(type='GaussNoise', p=0.5)]),
     dict(type='PackSegInputs')
 ]
 
 	
 test_pipeline = [
-    dict(type='LoadSingleRSImageFromFile'),
+    dict(type='LoadSingleRSImageFromFile', in_channels=img_channels),
     dict(type='Resize', scale=(512, 512), keep_ratio=True),
     dict(type='LoadAnnotations'),
     dict(type='PackSegInputs')

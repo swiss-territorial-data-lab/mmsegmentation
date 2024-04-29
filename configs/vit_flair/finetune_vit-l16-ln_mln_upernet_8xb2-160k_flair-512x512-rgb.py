@@ -6,7 +6,7 @@ _base_ = [
 crop_size = (512, 512)
 
 train_pipeline = [
-    dict(type='LoadSingleRSImageFromFile'),
+    dict(type='LoadSingleRSImageFromFile', in_channels=3),
     dict(type='LoadAnnotations'),
     dict(
         type='RandomResize',
@@ -52,7 +52,8 @@ model = dict(
         # final_norm=True,
         out_indices=[7, 11, 15, 23],
         init_cfg = dict(type='Pretrained_Part', 
-                        checkpoint='/mnt/Data2/sli/mmsegmentation/pretrained_ViT/vit_sampled_latest.pth',
+                        # checkpoint='/mnt/Data2/sli/mmsegmentation/pretrained_ViT/vit_sampled_latest.pth',
+                        checkpoint='/mnt/Data2/sli/mmsegmentation/pretrained_ViT/vit-large-p16_in21k-pre-3rdparty_ft-in1k-384-mmseg.pth',
                         copy_rgb=True)
         ),
     neck=dict(
@@ -93,8 +94,8 @@ optim_wrapper = dict(
         )
 
 param_scheduler = [
-    # dict(
-    #     type='LinearLR', start_factor=1e-6, by_epoch=False, begin=0, end=1500),
+    dict(
+        type='LinearLR', start_factor=1e-6, by_epoch=False, begin=0, end=1500),
     dict(
         type='PolyLR',
         eta_min=2e-8,
