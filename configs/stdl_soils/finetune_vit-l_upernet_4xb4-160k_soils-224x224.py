@@ -1,9 +1,10 @@
 _base_ = [
     '../_base_/models/upernet_vit-b16_ln_mln.py',
     '../_base_/datasets/stdl_soils.py', '../_base_/default_runtime.py',
-    '../_base_/schedules/schedule_40k.py'
+    '../_base_/schedules/schedule_160k.py'
 ]
-crop_size = (512, 512)
+crop_size = (224, 224)
+img_channels = 5
 
 data_preprocessor = dict(  
     type='SegDataPreProcessor',  
@@ -11,7 +12,7 @@ data_preprocessor = dict(
     std=[34.910034, 33.61709, 32.622425, 34.69036, 19.819977],  
     bgr_to_rgb=False,  
     rgb_to_bgr=False,  
-    size=(512, 512),
+    size=(224, 224),
     pad_val=0,  
     seg_pad_val=255) 
 
@@ -23,7 +24,7 @@ model = dict(
         img_size=crop_size,
         patch_size=16,
         embed_dims=1024,
-        in_channels=5,
+        in_channels=img_channels,
         num_layers=24,
         num_heads=16,
         mlp_ratio=4,
@@ -33,7 +34,7 @@ model = dict(
         frozen_exclude=['all'],
         # final_norm=True,
         out_indices=[7, 11, 15, 23],
-        init_cfg = dict(type='Pretrained', checkpoint='/mnt/Data2/sli/mmsegmentation/pretrained_ViT/vit_sampled_latest.pth')
+        # init_cfg = dict(type='Pretrained', checkpoint='')
         ),
     neck=dict(
         type='MultiLevelNeck',
@@ -77,10 +78,10 @@ param_scheduler = [
         type='LinearLR', start_factor=1e-6, by_epoch=False, begin=0, end=1500),
     dict(
         type='PolyLR',
-        eta_min=2e-8,
+        eta_min=2e-7,
         power=1.0,
         begin=1500,
-        end=40000,
+        end=160000,
         by_epoch=False,
     )
 ]
@@ -106,7 +107,7 @@ test_dataloader = dict(
 
 
 train_cfg = dict(
-    type='IterBasedTrainLoop', max_iters=40000, val_interval=2000)
+    type='IterBasedTrainLoop', max_iters=160000, val_interval=2000)
 
 default_hooks = dict(
     timer=dict(type='IterTimerHook'),

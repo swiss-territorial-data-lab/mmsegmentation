@@ -366,30 +366,8 @@ class VisionTransformer(BaseModule):
                             continue
                     except Exception as e:
                         print_log(msg=f"Unexpected init weights {name}")
-                        continue
-
-                    # if param.size() != weight.size():
-                    #     random_init = torch.randn_like(param)
-                    #     if len(weight.size()) == 1:
-                    #         random_init[:weight.size()[0]].copy_(weight)
-                    #         if copy_rgb:
-                    #             random_init[weight.size()[0]:].copy_(weight[0])
-                    #     elif len(weight.size()) == 2:
-                    #         random_init[:weight.size()[0], :weight.size()[1]].copy_(weight)
-                    #         if copy_rgb:
-                    #             random_init[:, weight.size()[1]:].copy_(weight[0, :])
-                    #     elif len(param.size()) == 3:
-                    #         random_init[:weight.size()[0], :weight.size()[1], :weight.size()[2]].copy_(weight)
-                    #         if copy_rgb:
-                    #             random_init[:, weight.size()[1]:, :].copy_(weight[:, 0:, :])
-                    #     elif len(param.size()) == 4:
-                    #         random_init[:weight.size()[0], :weight.size()[1], :weight.size()[2], :weight.size()[3]].copy_(weight)
-                    #         if copy_rgb:
-                    #             random_init[:, 3: , :, :].copy_(weight[:, [0, 0], :, :])
-                    #     else:
-                    #         raise ValueError('Model weights more than 4 dimension!')
-                        
-                    #     expanded_state_dict[name] = random_init         
+                        continue    
+                    
                     if param.size() != weight.size():
                         random_init = torch.randn_like(param)
                         if len(weight.size()) == 1:
@@ -400,6 +378,9 @@ class VisionTransformer(BaseModule):
                             random_init.copy_(weight[:param.size()[0], :param.size()[1], :param.size()[2]])
                         elif len(param.size()) == 4:
                             random_init.copy_(weight[:param.size()[0], :param.size()[1], :param.size()[2], :param.size()[3]])
+                            if copy_rgb:
+                                num_add_bands = param.size()[1] - weight.size()[1]
+                                random_init[:, 3: , :, :].copy_(weight[:, [0]*num_add_bands, :, :])
                         else:
                             raise ValueError('Model weights more than 4 dimension!')
                         

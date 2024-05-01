@@ -1,35 +1,18 @@
 _base_ = [
     '../_base_/models/upernet_vit-b16_ln_mln.py',
-    '../_base_/datasets/flair_one.py', '../_base_/default_runtime.py',
-    '../_base_/schedules/schedule_160k.py'
+    '../_base_/datasets/stdl_soils.py', '../_base_/default_runtime.py',
+    '../_base_/schedules/schedule_20k.py'
 ]
-crop_size = (512, 512)
-
-train_pipeline = [
-    dict(type='LoadSingleRSImageFromFile', in_channels=3),
-    dict(type='LoadAnnotations'),
-    dict(
-        type='RandomResize',
-        scale=(512, 512),
-        ratio_range=(0.5, 2.0),
-        keep_ratio=True
-        ),
-    dict(type='RandomCrop', crop_size=crop_size, cat_max_ratio=0.75),
-    dict(type='RandomFlip', prob=0.5),
-    # dict(type='PhotoMetricDistortion5Channel'),
-    # dict(
-    #     type='Albu',
-    #     transforms=[dict(type='GaussNoise', p=0.5)]),
-    dict(type='PackSegInputs')
-]
+crop_size = (224, 224)
+img_channels = 5
 
 data_preprocessor = dict(  
     type='SegDataPreProcessor',  
-    mean=[113.777, 117.952, 109.288],  
-    std=[35.525, 32.141, 30.779],  
+    mean=[96.486855, 103.2926, 85.37917, 115.856064, 22.425655],  
+    std=[34.910034, 33.61709, 32.622425, 34.69036, 19.819977],  
     bgr_to_rgb=False,  
     rgb_to_bgr=False,  
-    size=(512, 512),
+    size=(224, 224),
     pad_val=0,  
     seg_pad_val=255) 
 
@@ -41,20 +24,17 @@ model = dict(
         img_size=crop_size,
         patch_size=16,
         embed_dims=1024,
-        in_channels=3,
+        in_channels=img_channels,
         num_layers=24,
         num_heads=16,
         mlp_ratio=4,
         drop_rate=0.,
         attn_drop_rate=0.,
-        drop_path_rate=0.,    
-        frozen_exclude=['all'],
+        drop_path_rate=0.,  
+        frozen_exclude=[],
         # final_norm=True,
         out_indices=[7, 11, 15, 23],
-        init_cfg = dict(type='Pretrained_Part', 
-                        # checkpoint='/mnt/Data2/sli/mmsegmentation/pretrained_ViT/vit_sampled_latest.pth',
-                        checkpoint='/mnt/Data2/sli/mmsegmentation/pretrained_ViT/vit-large-p16_in21k-pre-3rdparty_ft-in1k-384-mmseg.pth',
-                        copy_rgb=True)
+        init_cfg = dict(type='Pretrained', checkpoint='')
         ),
     neck=dict(
         type='MultiLevelNeck',
@@ -77,7 +57,7 @@ model = dict(
             type='CrossEntropyLoss', 
             use_sigmoid=False, 
             loss_weight=0.4)),
-    test_cfg=dict(mode='slide', crop_size=crop_size, stride=(341, 341)))
+    test_cfg=dict(mode='slide', crop_size=crop_size, stride=(144, 144)))
 # AdamW optimizer, no weight decay for position embedding & layer norm
 # in backbone
 optim_wrapper = dict(
@@ -90,18 +70,17 @@ optim_wrapper = dict(
             'pos_embed': dict(decay_mult=0.),
             'cls_token': dict(decay_mult=0.),
             'norm': dict(decay_mult=0.)
-        })
-        )
+        }))
 
 param_scheduler = [
     dict(
         type='LinearLR', start_factor=1e-6, by_epoch=False, begin=0, end=1500),
     dict(
         type='PolyLR',
-        eta_min=2e-8,
+        eta_min=0.0,
         power=1.0,
-        begin=0,
-        end=160000,
+        begin=1500,
+        end=20000,
         by_epoch=False,
     )
 ]
@@ -127,12 +106,12 @@ test_dataloader = dict(
 
 
 train_cfg = dict(
-    type='IterBasedTrainLoop', max_iters=160000, val_interval=2000)
+    type='IterBasedTrainLoop', max_iters=20000, val_interval=2000)
 
 default_hooks = dict(
     timer=dict(type='IterTimerHook'),
     logger=dict(type='LoggerHook', interval=50, log_metric_by_epoch=False),
     param_scheduler=dict(type='ParamSchedulerHook'),
-    checkpoint=dict(type='CheckpointHook', by_epoch=False, interval=2000, max_keep_ckpts=2, save_best='mIoU'),
+    checkpoint=dict(type='CheckpointHook', by_epoch=False, interval=2000, max_keep_ckpts=1),
     sampler_seed=dict(type='DistSamplerSeedHook'),
     visualization=dict(type='SegVisualizationHook'))

@@ -77,7 +77,7 @@ param_scheduler = [
         type='LinearLR', start_factor=1e-6, by_epoch=False, begin=0, end=1500),
     dict(
         type='PolyLR',
-        eta_min=2e-8,
+        eta_min=2e-7,
         power=1.0,
         begin=0,
         end=160000,

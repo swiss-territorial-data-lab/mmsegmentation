@@ -7,7 +7,7 @@ model = dict(
     backbone=dict(
         img_size=crop_size,
         in_channels=img_channels,
-        frozen_exclude=[],
+        frozen_exclude=['all'],
         init_cfg = dict(type='Pretrained', checkpoint='')
         ),
     test_cfg=dict(mode='slide', crop_size=crop_size, stride=(341, 341)))

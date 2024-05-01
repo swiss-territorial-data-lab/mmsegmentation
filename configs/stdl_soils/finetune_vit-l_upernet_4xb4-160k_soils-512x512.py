@@ -1,9 +1,10 @@
 _base_ = [
     '../_base_/models/upernet_vit-b16_ln_mln.py',
     '../_base_/datasets/stdl_soils.py', '../_base_/default_runtime.py',
-    '../_base_/schedules/schedule_20k.py'
+    '../_base_/schedules/schedule_80k.py'
 ]
-crop_size = (224, 224)
+crop_size = (512, 512)
+img_channels = 5
 
 data_preprocessor = dict(  
     type='SegDataPreProcessor',  
@@ -11,7 +12,7 @@ data_preprocessor = dict(
     std=[34.910034, 33.61709, 32.622425, 34.69036, 19.819977],  
     bgr_to_rgb=False,  
     rgb_to_bgr=False,  
-    size=(224, 224),
+    size=(512, 512),
     pad_val=0,  
     seg_pad_val=255) 
 
@@ -23,17 +24,17 @@ model = dict(
         img_size=crop_size,
         patch_size=16,
         embed_dims=1024,
-        in_channels=5,
+        in_channels=img_channels,
         num_layers=24,
         num_heads=16,
         mlp_ratio=4,
         drop_rate=0.,
         attn_drop_rate=0.,
-        drop_path_rate=0.,  
-        frozen_exclude=[],
+        drop_path_rate=0.,    
+        frozen_exclude=['all'],
         # final_norm=True,
         out_indices=[7, 11, 15, 23],
-        init_cfg = dict(type='Pretrained', checkpoint='/mnt/Data2/sli/mmsegmentation/pretrained_ViT/vit_sampled_latest.pth')
+        init_cfg = dict(type='Pretrained', checkpoint='')
         ),
     neck=dict(
         type='MultiLevelNeck',
@@ -69,48 +70,49 @@ optim_wrapper = dict(
             'pos_embed': dict(decay_mult=0.),
             'cls_token': dict(decay_mult=0.),
             'norm': dict(decay_mult=0.)
-        }))
+        })
+        )
 
 param_scheduler = [
     dict(
         type='LinearLR', start_factor=1e-6, by_epoch=False, begin=0, end=1500),
     dict(
         type='PolyLR',
-        eta_min=0.0,
+        eta_min=2e-8,
         power=1.0,
         begin=1500,
-        end=20000,
+        end=160000,
         by_epoch=False,
     )
 ]
 
 # By default, models are trained on 8 GPUs with 2 images per GPU
 train_dataloader = dict(  
-    batch_size=16,  
-    num_workers=10,  
+    batch_size=4,  
+    num_workers=4,  
     persistent_workers=True,  
     sampler=dict(type='InfiniteSampler', shuffle=True)) 
 
 val_dataloader = dict(
-    batch_size=64,  
+    batch_size=32,  
     num_workers=10,  
     persistent_workers=True,  
     sampler=dict(type='DefaultSampler', shuffle=False))  
 
 test_dataloader = dict(
-    batch_size=64,  
+    batch_size=32,  
     num_workers=10,  
     persistent_workers=True,  
     sampler=dict(type='DefaultSampler', shuffle=False))  
 
 
 train_cfg = dict(
-    type='IterBasedTrainLoop', max_iters=20000, val_interval=2000)
+    type='IterBasedTrainLoop', max_iters=160000, val_interval=2000)
 
 default_hooks = dict(
     timer=dict(type='IterTimerHook'),
     logger=dict(type='LoggerHook', interval=50, log_metric_by_epoch=False),
     param_scheduler=dict(type='ParamSchedulerHook'),
-    checkpoint=dict(type='CheckpointHook', by_epoch=False, interval=2000, max_keep_ckpts=1),
+    checkpoint=dict(type='CheckpointHook', by_epoch=False, interval=2000, max_keep_ckpts=2, save_best='mIoU'),
     sampler_seed=dict(type='DistSamplerSeedHook'),
     visualization=dict(type='SegVisualizationHook'))
