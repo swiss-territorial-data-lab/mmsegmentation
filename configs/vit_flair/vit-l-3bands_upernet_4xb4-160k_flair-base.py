@@ -85,25 +85,50 @@ param_scheduler = [
     )
 ]
 
-# By default, models are trained on 4 GPUs with 16 images per GPU
+# By default, models are trained on 4 GPUs with 4 images per GPU
+
+train_pipeline = [
+    dict(type='LoadSingleRSImageFromFile', in_channels=img_channels),
+    dict(type='LoadAnnotations'),
+    dict(
+        type='RandomResize',
+        scale=(512, 512),
+        ratio_range=(0.5, 2.0),
+        keep_ratio=True
+        ),
+    dict(type='RandomCrop', crop_size=crop_size, cat_max_ratio=0.75),
+    dict(type='RandomFlip', prob=0.5),
+    dict(type='PackSegInputs')
+]
+
+	
+test_pipeline = [
+    dict(type='LoadSingleRSImageFromFile', in_channels=img_channels),
+    dict(type='Resize', scale=(512, 512), keep_ratio=True),
+    dict(type='LoadAnnotations'),
+    dict(type='PackSegInputs')
+]
+
 train_dataloader = dict(  
     batch_size=4,  
     num_workers=4,  
     persistent_workers=True,  
-    sampler=dict(type='InfiniteSampler', shuffle=True)) 
+    sampler=dict(type='InfiniteSampler', shuffle=True),
+    dataset=dict(pipeline=train_pipeline)) 
 
 val_dataloader = dict(
     batch_size=32,  
     num_workers=10,  
     persistent_workers=True,  
-    sampler=dict(type='DefaultSampler', shuffle=False))  
+    sampler=dict(type='DefaultSampler', shuffle=False),
+    dataset=dict(pipeline=test_pipeline))  
 
 test_dataloader = dict(
     batch_size=32,  
     num_workers=10,  
     persistent_workers=True,  
-    sampler=dict(type='DefaultSampler', shuffle=False))  
-
+    sampler=dict(type='DefaultSampler', shuffle=False),
+    dataset=dict(pipeline=test_pipeline))  
 
 train_cfg = dict(
     type='IterBasedTrainLoop', max_iters=160000, val_interval=2000)

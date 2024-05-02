@@ -10,7 +10,7 @@ model = dict(
         frozen_exclude=['all'],
         init_cfg = dict(type='Pretrained', checkpoint='')
         ),
-    test_cfg=dict(mode='slide', crop_size=crop_size, stride=(341, 341)))
+    test_cfg=dict(mode='slide', crop_size=crop_size, stride=(144, 144)))
 
 
 train_pipeline = [
@@ -26,16 +26,5 @@ train_pipeline = [
     dict(type='RandomFlip', prob=0.5),
     dict(type='PackSegInputs')
 ]
-	
-test_pipeline = [
-    dict(type='LoadSingleRSImageFromFile', in_channels=img_channels),
-    dict(type='Resize', scale=(512, 512), keep_ratio=True),
-    dict(type='LoadAnnotations'),
-    dict(type='PackSegInputs')
-]
 
 train_dataloader = dict(dataset=dict(pipeline=train_pipeline)) 
-
-val_dataloader = dict(dataset=dict(pipeline=test_pipeline))
-
-test_dataloader = val_dataloader

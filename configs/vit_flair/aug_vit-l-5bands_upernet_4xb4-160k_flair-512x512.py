@@ -22,7 +22,3 @@ train_pipeline = [
 ]
 
 train_dataloader = dict(dataset=dict(pipeline=train_pipeline)) 
-
-val_dataloader = dict(dataset=dict(pipeline=test_pipeline))
-
-test_dataloader = val_dataloader
