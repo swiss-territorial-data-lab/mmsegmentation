@@ -333,13 +333,7 @@ class VisionTransformer(BaseModule):
                     state_dict = checkpoint
 
             elif self.init_cfg.get('type') == 'Pretrained_Part':     
-                print_log(msg=f"Loading with different in_channels pretrained weights!")
-                if self.init_cfg.get('copy_rgb'):
-                    copy_rgb = True
-                    print_log(msg=f"Copy red channel weights to additional channels!")
-                else:
-                    copy_rgb = False
-                    print_log(msg=f"Do random initialization for additional channels!")
+                print_log(msg=f"Loading with different in_channels pretrained weights or different state_dict keys!")
 
                 if 'state_dict' in checkpoint:
                     state_dict = checkpoint['state_dict']
@@ -355,7 +349,6 @@ class VisionTransformer(BaseModule):
                         name = name[len('backbone.'):]
                     if name == 'pos_embed':
                         expanded_state_dict[name] = weight 
-                        print_log(msg=f"Skip pos_embed layer!")
                         continue
                     parts = [string if not string.isdigit() else '['+ string +']' for string in name.split('.')]
                     key = '.'.join(parts).replace('.[', '[')
@@ -369,7 +362,7 @@ class VisionTransformer(BaseModule):
                         continue    
                     
                     if param.size() != weight.size():
-                        random_init = torch.randn_like(param)
+                        random_init = torch.randn_like(param)                                                  
                         if len(weight.size()) == 1:
                             random_init.copy_(weight[:param.size()[0]])
                         elif len(weight.size()) == 2:
@@ -377,10 +370,25 @@ class VisionTransformer(BaseModule):
                         elif len(param.size()) == 3:
                             random_init.copy_(weight[:param.size()[0], :param.size()[1], :param.size()[2]])
                         elif len(param.size()) == 4:
-                            random_init.copy_(weight[:param.size()[0], :param.size()[1], :param.size()[2], :param.size()[3]])
-                            if copy_rgb:
-                                num_add_bands = param.size()[1] - weight.size()[1]
-                                random_init[:, 3: , :, :].copy_(weight[:, [0]*num_add_bands, :, :])
+                            if self.init_cfg.get('copy_rgb'):
+                                copy_rgb = True
+                                print_log(msg=f"Copy red channel weights to additional channels!")
+                            else:
+                                copy_rgb = False
+                                print_log(msg=f"Do random initialization for additional channels!")
+                            # channel of pretrained weights > current model
+                            if (param.size()[1] > weight.size()[1]):
+                                # copy weights from optical channels
+                                if copy_rgb:
+                                    num_add_bands = param.size()[1] - weight.size()[1]
+                                    random_init = torch.index_select(weight, 1, torch.LongTensor(list(weight.size()[1])+[0]*num_add_bands)) 
+                                # random init
+                                else:
+                                    random_init[:weight.size()[0], :weight.size()[1], :weight.size()[2], :weight.size()[3]].copy_(weight)
+                            # channel of pretrained weights <= current model
+                            else:                                    
+                                random_init.copy_(weight[:param.size()[0], :param.size()[1], :param.size()[2], :param.size()[3]])
+
                         else:
                             raise ValueError('Model weights more than 4 dimension!')
                         
