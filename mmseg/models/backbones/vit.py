@@ -381,7 +381,7 @@ class VisionTransformer(BaseModule):
                                 # copy weights from optical channels
                                 if copy_rgb:
                                     num_add_bands = param.size()[1] - weight.size()[1]
-                                    random_init = torch.index_select(weight, 1, torch.LongTensor(list(weight.size()[1])+[0]*num_add_bands)) 
+                                    random_init = torch.index_select(weight, 1, torch.LongTensor(list(range(weight.size()[1]))+[0]*num_add_bands)) 
                                 # random init
                                 else:
                                     random_init[:weight.size()[0], :weight.size()[1], :weight.size()[2], :weight.size()[3]].copy_(weight)
